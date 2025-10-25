@@ -23,7 +23,7 @@ EMO_SHOT = "🟥"  # 사격 가능
 # 보드 칸 크기(정사각형)
 CELL_PX = 44
 
-# 보드 전용 CSS: 모든 칸을 **정사각형 버튼**으로 고정 + 타이머 박스 스타일
+# 보드 전용 CSS + 타이머 박스(가로 1.5배 확대: 180px)
 st.markdown(
     f"""
     <style>
@@ -43,10 +43,13 @@ st.markdown(
     .board-grid .stButton > button:disabled {{
         opacity: 1.0 !important;
     }}
+    .timer-row {{
+        display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    }}
     .timer-box {{
-        display: inline-block; padding: 8px 12px; border-radius: 10px; margin-right: 8px;
-        font-weight: 700; font-size: 18px; border: 1px solid #e5e7eb;
-        background: #f9fafb; color: #111827;
+        display: inline-block; padding: 10px 14px; border-radius: 12px;
+        font-weight: 700; font-size: 20px; border: 1px solid #e5e7eb;
+        background: #f9fafb; color: #111827; min-width: 180px; /* 가로 확대 */
     }}
     .timer-active {{ background: #eef2ff; border-color:#c7d2fe; }}
     .timer-low {{ background:#fef2f2; border-color:#fecaca; color:#991b1b; }}
@@ -174,9 +177,7 @@ def search(b:Board, depth:int, a:int, bb:int, side:int, P:Dict[str,int])->int:
         return best
 
 def ai_move(b:Board, difficulty:int)->Optional[Move]:
-    """
-    난이도 설계(1~15)
-    """
+    """난이도 1~15"""
     if difficulty <= 3:
         depth=1
         P=dict(
@@ -254,10 +255,11 @@ def reset_game():
     st.session_state.game_over = False
     st.session_state.winner = None
     st.session_state.show_dialog = False
-    # --- 타이머(각 10분 = 600초) ---
+    # --- 타이머(각 10분 = 600초), 시작 버튼 대기 ---
     st.session_state.remain_hum = 600.0
     st.session_state.remain_cpu = 600.0
-    st.session_state.last_update = time.time()  # 인간 턴 카운트 기준
+    st.session_state.last_update = time.time()
+    st.session_state.timer_started = False  # ▶ 게임 시작 버튼 눌러야 카운트다운
 
 if "board" not in st.session_state:
     reset_game()
@@ -270,8 +272,8 @@ def fmt_time(sec: float) -> str:
     return f"{m:02d}:{s:02d}"
 
 def tick_human_time():
-    """인간 턴일 때만 last_update~현재까지 경과를 인간 잔여시간에서 차감."""
-    if st.session_state.game_over: 
+    """게임이 시작되었고 인간 턴일 때만 시간 차감."""
+    if st.session_state.game_over or not st.session_state.timer_started:
         return
     if st.session_state.turn == HUM:
         now = time.time()
@@ -307,9 +309,8 @@ def winner_dialog(who: str):
 # ================= 상단 UI =================
 left, right = st.columns([1,1])
 
-# ---- 좌측상단: 10분 카운트다운 표시 ----
+# ---- 좌측상단: 10분 카운트다운 + '게임 시작' 버튼 ----
 with left:
-    # 남은 시간 상태
     hum_left = st.session_state.remain_hum
     cpu_left = st.session_state.remain_cpu
     hum_low = hum_left <= 30
@@ -321,21 +322,34 @@ with left:
     if hum_low: hum_classes += " timer-low"
     if cpu_low: cpu_classes += " timer-low"
 
+    st.markdown('<div class="timer-row">', unsafe_allow_html=True)
     st.markdown(
         f"""
-        <div>
-          <span class="{cpu_classes}">
-            <span class="timer-name">{EMO_CPU} 컴퓨터</span>
-            <span class="timer-time">{fmt_time(cpu_left)}</span>
-          </span>
-          <span class="{hum_classes}">
-            <span class="timer-name">{EMO_HUM} Cool Choi</span>
-            <span class="timer-time">{fmt_time(hum_left)}</span>
-          </span>
-        </div>
+        <span class="{cpu_classes}">
+          <span class="timer-name">{EMO_CPU} 컴퓨터</span>
+          <span class="timer-time">{fmt_time(cpu_left)}</span>
+        </span>
         """,
         unsafe_allow_html=True
     )
+    st.markdown(
+        f"""
+        <span class="{hum_classes}">
+          <span class="timer-name">{EMO_HUM} Cool Choi</span>
+          <span class="timer-time">{fmt_time(hum_left)}</span>
+        </span>
+        """,
+        unsafe_allow_html=True
+    )
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # ▶ 게임 시작 버튼: 눌러야 카운트다운 시작
+    if not st.session_state.timer_started:
+        if st.button("게임 시작 ▶", use_container_width=False):
+            st.session_state.timer_started = True
+            st.session_state.last_update = time.time()  # 인간 기준 시각 맞춤
+            st.rerun()
+
     st.title("Cool Choi Amazons")
     st.caption("말을 퀸처럼 이동 → 도착칸에서 또 퀸처럼 화살(블록)을 발사해 빈칸을 막기. 상대가 더 이상 이동 못 하거나, 생각 시간 10분을 초과하면 패배.")
 
@@ -385,6 +399,7 @@ def on_click(r:int,c:int):
     if st.session_state.turn!=HUM: return
     phase = st.session_state.phase
 
+    # 시작 버튼을 누르지 않으면 클릭만 가능하고 시간은 흐르지 않음(원하는 동작)
     if phase=="select":
         if board[r][c]==HUM:
             st.session_state.sel_from = (r,c)
@@ -410,9 +425,7 @@ def on_click(r:int,c:int):
             hm = Move(st.session_state.sel_from, st.session_state.sel_to, (r,c))
             st.session_state.last_human_move = hm
             st.session_state.hist.append(clone(board))
-            # 턴 전환 직전 시간초과 확인
             check_flag_fall()
-            # 턴 전환: CPU로 넘어가므로 인간 타이머의 기준 시각 갱신 불필요
             st.session_state.turn = CPU
             st.session_state.phase = "select"
             st.session_state.sel_from = None
@@ -473,12 +486,13 @@ if not st.session_state.game_over and st.session_state.turn==CPU:
         announce_and_set("플레이어", ok=True)
         end_game("플레이어", human_win=True)
     else:
-        # 컴퓨터 생각 시간 측정 → CPU 잔여시간에서 차감
         with st.spinner("컴퓨터 생각중..."):
             t0 = time.perf_counter()
             mv = ai_move(board, st.session_state.difficulty)
             t1 = time.perf_counter()
-            st.session_state.remain_cpu -= max(0.0, t1 - t0)
+            # 타이머가 시작된 경우에만 CPU 시간 차감
+            if st.session_state.timer_started:
+                st.session_state.remain_cpu -= max(0.0, t1 - t0)
         check_flag_fall()
         if not st.session_state.game_over:
             if mv is None:
@@ -488,20 +502,19 @@ if not st.session_state.game_over and st.session_state.turn==CPU:
                 st.session_state.board = apply_move(board, mv, CPU)
                 st.session_state.last_cpu_move = mv
                 st.session_state.last_shot_pos = mv.shot
-                # 턴 전환: 인간으로 돌아가므로 기준 시각 갱신
                 st.session_state.turn = HUM
                 st.session_state.phase = "select"
                 st.session_state.sel_from = None
                 st.session_state.sel_to = None
                 st.session_state.legal = set()
-                st.session_state.last_update = time.time()
+                st.session_state.last_update = time.time()  # 인간 기준 시각 재설정
         st.rerun()
 
 # 팝업 열기
 if st.session_state.show_dialog and st.session_state.winner:
     winner_dialog(st.session_state.winner)
 
-# ---- 인간 턴일 때 1초 주기 자동 리프레시로 실시간 카운트다운 ----
-if not st.session_state.game_over and st.session_state.turn == HUM:
+# ---- 인간 턴 + 타이머 시작 후에만 1초 주기 자동 리프레시 ----
+if not st.session_state.game_over and st.session_state.turn == HUM and st.session_state.timer_started:
     time.sleep(1.0)
     st.rerun()
