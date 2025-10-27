@@ -13,69 +13,66 @@ EMPTY, HUM, CPU, BLOCK = 0, 1, 2, 3
 DIRS = [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(-1,1),(1,-1),(1,1)]
 
 # 이모지
-EMO_HUM = "🔵"   # 플레이어
-EMO_CPU = "🟡"   # 컴퓨터
-EMO_BLK = "⬛"   # 블록
-EMO_EMP = "·"   # 빈칸
-EMO_MOVE = "🟩"  # 이동 가능
-EMO_SHOT = "🟥"  # 사격 가능
+EMO_HUM = "🔵"
+EMO_CPU = "🟡"
+EMO_BLK = "⬛"
+EMO_EMP = "·"
+EMO_MOVE = "🟩"
+EMO_SHOT = "🟥"
 
 # 보드 칸 픽셀(정사각형 버튼)
 CELL_PX = 44
-COL_W = CELL_PX + 8  # 각 열 실제 폭(버튼 + 패딩)
+COL_W = CELL_PX + 8
 
-# ======= 보드/타이머 CSS: "열 폭 고정"으로 보드를 정사각형 형태로 압축 =======
+# ---------- 스타일 ----------
 st.markdown(
     f"""
     <style>
-    /* 보드 전체를 내용 크기만큼만 차지하게 */
     .board-wrap {{
-        display: inline-block;
-        padding: 6px;
-        border: 1px solid #e5e7eb;
-        border-radius: 12px;
-        background: #ffffff;
+        display: inline-block; padding: 6px;
+        border: 1px solid #e5e7eb; border-radius: 12px; background: #fff;
     }}
-
-    /* Streamlit columns가 화면 폭에 맞춰 늘어나는 걸 차단 (핵심!) */
     .board-grid div[data-testid="column"] {{
         padding: 2px !important;
-        flex: 0 0 {COL_W}px !important;     /* 고정 폭 할당 */
-        width: {COL_W}px !important;
-        max-width: {COL_W}px !important;
-        min-width: {COL_W}px !important;
+        flex: 0 0 {COL_W}px !important;
+        width:{COL_W}px !important; max-width:{COL_W}px !important; min-width:{COL_W}px !important;
     }}
-    .board-grid [data-testid="stHorizontalBlock"] {{
-        gap: 0px !important;  /* 행 간 가로 간격 제거 */
-    }}
+    .board-grid [data-testid="stHorizontalBlock"] {{ gap: 0px !important; }}
     .board-grid .stButton > button {{
-        width: {CELL_PX}px !important;
-        height: {CELL_PX}px !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        line-height: {CELL_PX}px !important;
-        border-radius: 10px !important;
-        font-size: {int(CELL_PX*0.45)}px !important;
-        display: inline-flex; align-items: center; justify-content: center;
+        width:{CELL_PX}px !important; height:{CELL_PX}px !important; margin:0 !important; padding:0 !important;
+        line-height:{CELL_PX}px !important; border-radius:10px !important; font-size:{int(CELL_PX*0.45)}px !important;
+        display:inline-flex; align-items:center; justify-content:center;
     }}
     .board-grid .stButton > button:disabled {{ opacity: 1.0 !important; }}
 
-    /* 타이머(가로 1.5배 확대 유지) */
     .timer-row {{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }}
     .timer-box {{
-        display: inline-block; padding: 10px 14px; border-radius: 12px;
-        font-weight: 700; font-size: 20px; border: 1px solid #e5e7eb;
-        background: #f9fafb; color: #111827; min-width: 180px;
+        display:inline-block; padding:10px 14px; border-radius:12px; font-weight:700; font-size:20px;
+        border:1px solid #e5e7eb; background:#f9fafb; color:#111827; min-width:180px;
     }}
-    .timer-active {{ background: #eef2ff; border-color:#c7d2fe; }}
+    .timer-active {{ background:#eef2ff; border-color:#c7d2fe; }}
     .timer-low {{ background:#fef2f2; border-color:#fecaca; color:#991b1b; }}
-    .timer-name {{ font-size: 13px; font-weight:600; display:block; opacity:.8; margin-bottom:4px; }}
+    .timer-name {{ font-size:13px; font-weight:600; display:block; opacity:.8; margin-bottom:4px; }}
     .timer-time {{ font-variant-numeric: tabular-nums; }}
+
+    /* 내 차례 신호 배너 */
+    .turn-banner {{
+        margin-top:6px; padding:10px 14px; border-radius:12px; font-weight:800;
+        background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;
+        display:inline-flex; align-items:center; gap:6px;
+        animation: pulse 1.2s ease-in-out infinite;
+    }}
+    @keyframes pulse {{
+        0% {{ box-shadow:0 0 0 0 rgba(16,185,129,.4); }}
+        70% {{ box-shadow:0 0 0 8px rgba(16,185,129,0); }}
+        100% {{ box-shadow:0 0 0 0 rgba(16,185,129,0); }}
+    }}
     </style>
     """,
     unsafe_allow_html=True,
 )
 
+# ========== 모델 ==========
 @dataclass
 class Move:
     fr: Tuple[int,int]
@@ -84,7 +81,7 @@ class Move:
 
 Board = List[List[int]]
 
-# ================= 보드/규칙 유틸 =================
+# ========== 유틸 ==========
 def in_bounds(r:int,c:int)->bool:
     return 0 <= r < SIZE and 0 <= c < SIZE
 
@@ -94,17 +91,15 @@ def clone(b:Board)->Board:
 def iter_ray(b:Board, r:int,c:int, dr:int,dc:int):
     nr, nc = r+dr, c+dc
     while in_bounds(nr,nc) and b[nr][nc]==EMPTY:
-        yield (nr,nc)
-        nr += dr; nc += dc
+        yield (nr,nc); nr += dr; nc += dc
 
 def piece_positions(b:Board, side:int)->List[Tuple[int,int]]:
     token = HUM if side==HUM else CPU
     return [(r,c) for r in range(SIZE) for c in range(SIZE) if b[r][c]==token]
 
 def legal_dests_from(b:Board, r:int,c:int)->List[Tuple[int,int]]:
-    out=[]
-    for dr,dc in DIRS:
-        out.extend(iter_ray(b,r,c,dr,dc))
+    out=[]; 
+    for dr,dc in DIRS: out.extend(iter_ray(b,r,c,dr,dc))
     return out
 
 def legal_shots_from(b:Board, r:int,c:int)->List[Tuple[int,int]]:
@@ -121,7 +116,7 @@ def apply_move(b:Board, mv:Move, side:int)->Board:
 def has_any_move(b:Board, side:int)->bool:
     return any(legal_dests_from(b,r,c) for r,c in piece_positions(b, side))
 
-# ================= 평가/AI(간결) =================
+# ========== 평가/AI ==========
 def mobility(b:Board, side:int)->int:
     return sum(len(legal_dests_from(b,r,c)) for r,c in piece_positions(b, side))
 
@@ -130,8 +125,7 @@ def liberties(b:Board, side:int)->int:
     for r,c in piece_positions(b, side):
         for dr,dc in DIRS:
             nr,nc=r+dr,c+dc
-            if in_bounds(nr,nc) and b[nr][nc]==EMPTY:
-                s+=1
+            if in_bounds(nr,nc) and b[nr][nc]==EMPTY: s+=1
     return s
 
 def center_score(b:Board, side:int)->int:
@@ -192,68 +186,53 @@ def search(b:Board, depth:int, a:int, bb:int, side:int, P:Dict[str,int])->int:
             if bb<=a: break
         return best
 
-def ai_move(b:Board, difficulty:int)->Optional[Move]:
-    """난이도 1~15"""
+def ai_move(b:Board, difficulty:int, time_budget:float)->Optional[Move]:
+    """
+    난이도 1~15 + 시간예산(초). 예산을 넘기면 즉시 현재 최선 또는 안전한 백업 수 반환.
+    """
+    start = time.perf_counter()
+    # 난이도→검색 파라미터(이전과 동일)
     if difficulty <= 3:
-        depth=1
-        P=dict(
-            k_dest_d1=6 + difficulty*3,
-            k_shot_d1=5 + difficulty*2,
-            cap_d1=40 + difficulty*20
-        )
+        depth=1; P=dict(k_dest_d1=9, k_shot_d1=7, cap_d1=80)
     elif difficulty <= 7:
-        depth=2
-        P=dict(
-            k_dest_d2=8 + (difficulty-3)*2,
-            k_shot_d2=6 + (difficulty-3),
-            cap_d2=40 + 10*(difficulty-3),
-            k_dest_d1=10, k_shot_d1=8, cap_d1=80
-        )
+        depth=2; P=dict(k_dest_d2=10, k_shot_d2=7, cap_d2=70, k_dest_d1=10, k_shot_d1=8, cap_d1=80)
     elif difficulty <= 12:
-        depth=3
-        s = difficulty-7
-        P=dict(
-            k_dest_d3=5 + s, k_shot_d3=4 + s//2, cap_d3=18 + 4*s,
-            k_dest_d2=9 + s, k_shot_d2=7 + s//2, cap_d2=42 + 8*s,
-            k_dest_d1=10, k_shot_d1=8, cap_d1=80
-        )
+        depth=3; P=dict(k_dest_d3=8, k_shot_d3=5, cap_d3=30, k_dest_d2=12, k_shot_d2=8, cap_d2=70, k_dest_d1=10, k_shot_d1=8, cap_d1=80)
     else:
-        depth=4
-        s = difficulty-12
-        P=dict(
-            k_dest_d4=3 + s, k_shot_d4=3 + (s//2), cap_d4=10 + 2*s,
-            k_dest_d3=6 + s, k_shot_d3=5 + (s//2), cap_d3=20 + 4*s,
-            k_dest_d2=10 + s, k_shot_d2=7 + (s//2), cap_d2=50 + 6*s,
-            k_dest_d1=10, k_shot_d1=8, cap_d1=80
-        )
+        depth=4; P=dict(k_dest_d4=5, k_shot_d4=4, cap_d4=14, k_dest_d3=8, k_shot_d3=6, cap_d3=28, k_dest_d2=12, k_shot_d2=8, cap_d2=62, k_dest_d1=10, k_shot_d1=8, cap_d1=80)
 
     root = gen_moves_limited(b, CPU, P[f"k_dest_d{depth}"], P[f"k_shot_d{depth}"], P[f"cap_d{depth}"])
     if not root: return None
+
     best=None; val_best=-1_000_000
     for mv in root:
+        # 시간예산 체크(중간 탈출 허용)
+        if time.perf_counter() - start > time_budget:
+            break
         v = search(apply_move(b,mv,CPU), depth-1, -1_000_000, 1_000_000, HUM, P)
         if v>val_best: val_best=v; best=mv
+
+    # 백업: 시간이 없거나 탐색 실패 시 무작위 합법 수
+    if best is None:
+        best = random.choice(root)
     return best
 
-# ================= 초기 보드 =================
+# ========== 초기 보드 ==========
 def initial_board()->Board:
     b = [[EMPTY for _ in range(SIZE)] for _ in range(SIZE)]
-    # 사람(백) d1,g1,a4,j4  => (9,3),(9,6),(6,0),(6,9)
     b[9][3]=HUM; b[9][6]=HUM; b[6][0]=HUM; b[6][9]=HUM
-    # 컴퓨터(흑) a7,j7,d10,g10 => (3,0),(3,9),(0,3),(0,6)
     b[3][0]=CPU; b[3][9]=CPU; b[0][3]=CPU; b[0][6]=CPU
     return b
 
-# ================= 상태 =================
+# ========== 상태 ==========
 def reset_game():
     st.session_state.board = initial_board()
     st.session_state.turn = HUM
-    st.session_state.phase = "select"  # select -> move -> shoot
+    st.session_state.phase = "select"
     st.session_state.sel_from = None
     st.session_state.sel_to = None
     st.session_state.legal = set()
     st.session_state.difficulty = st.session_state.get("difficulty", 5)
-    # 하이라이트/엔드 상태
     st.session_state.last_human_move = None
     st.session_state.last_cpu_move = None
     st.session_state.last_shot_pos = None
@@ -266,83 +245,68 @@ def reset_game():
     st.session_state.remain_cpu = 600.0
     st.session_state.last_update = time.time()
     st.session_state.timer_started = False
+    # 기록
+    st.session_state.hist = []              # 보드 스냅샷 스택
+    st.session_state.MAX_THINK_SEC = 8.0    # CPU 한 수 최대 생각 시간(초)
 
 if "board" not in st.session_state:
     reset_game()
 
-# ========= 타임 포맷 & 카운트다운 틱 =========
+# ========== 시간 처리 ==========
 def fmt_time(sec: float) -> str:
     if sec < 0: sec = 0
-    m = int(sec) // 60
-    s = int(sec) % 60
+    m = int(sec) // 60; s = int(sec) % 60
     return f"{m:02d}:{s:02d}"
 
 def tick_human_time():
-    if st.session_state.game_over or not st.session_state.timer_started:
-        return
+    if st.session_state.game_over or not st.session_state.timer_started: return
     if st.session_state.turn == HUM:
         now = time.time()
         dt = now - st.session_state.last_update
-        if dt > 0:
-            st.session_state.remain_hum -= dt
+        if dt > 0: st.session_state.remain_hum -= dt
         st.session_state.last_update = now
 
 def check_flag_fall():
     if st.session_state.remain_hum <= 0 and not st.session_state.game_over:
-        announce_and_set("컴퓨터(시간초과 승)", ok=False)
-        end_game("컴퓨터(시간초과 승)", human_win=False)
+        announce_and_set("컴퓨터(시간초과 승)", ok=False); end_game("컴퓨터(시간초과 승)", human_win=False)
     if st.session_state.remain_cpu <= 0 and not st.session_state.game_over:
-        announce_and_set("플레이어(시간초과 승)", ok=True)
-        end_game("플레이어(시간초과 승)", human_win=True)
+        announce_and_set("플레이어(시간초과 승)", ok=True); end_game("플레이어(시간초과 승)", human_win=True)
 
-tick_human_time()
-check_flag_fall()
+tick_human_time(); check_flag_fall()
 
-# ========== 팝업(모달) ==========
+# ========== 팝업 ==========
 @st.dialog("경기 종료")
 def winner_dialog(who: str):
     st.markdown(f"### **{who} 승리!** 🎉")
-    st.write("새 게임을 시작하거나 창을 닫을 수 있어요.")
     colA, colB = st.columns(2)
     def close_dialog(): st.session_state.show_dialog = False
     def new_game(): reset_game()
     if colA.button("닫기", use_container_width=True): close_dialog()
     if colB.button("새 게임", use_container_width=True): new_game(); st.rerun()
 
-# ================= 상단 UI =================
+# ========== 상단 UI ==========
 left, right = st.columns([1,1])
 
 with left:
     hum_left = st.session_state.remain_hum
     cpu_left = st.session_state.remain_cpu
-    hum_low = hum_left <= 30
-    cpu_low = cpu_left <= 30
-    hum_classes = "timer-box"
-    cpu_classes = "timer-box"
+    hum_low = hum_left <= 30; cpu_low = cpu_left <= 30
+    hum_classes = "timer-box"; cpu_classes = "timer-box"
     if st.session_state.turn == HUM: hum_classes += " timer-active"
     else: cpu_classes += " timer-active"
     if hum_low: hum_classes += " timer-low"
     if cpu_low: cpu_classes += " timer-low"
 
     st.markdown('<div class="timer-row">', unsafe_allow_html=True)
-    st.markdown(
-        f"""
-        <span class="{cpu_classes}">
-          <span class="timer-name">{EMO_CPU} 컴퓨터</span>
-          <span class="timer-time">{fmt_time(cpu_left)}</span>
-        </span>
-        """, unsafe_allow_html=True
-    )
-    st.markdown(
-        f"""
-        <span class="{hum_classes}">
-          <span class="timer-name">{EMO_HUM} Cool Choi</span>
-          <span class="timer-time">{fmt_time(hum_left)}</span>
-        </span>
-        """, unsafe_allow_html=True
-    )
+    st.markdown(f'<span class="{cpu_classes}"><span class="timer-name">{EMO_CPU} 컴퓨터</span><span class="timer-time">{fmt_time(cpu_left)}</span></span>', unsafe_allow_html=True)
+    st.markdown(f'<span class="{hum_classes}"><span class="timer-name">{EMO_HUM} Cool Choi</span><span class="timer-time">{fmt_time(hum_left)}</span></span>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
+    # 내 차례 신호
+    if not st.session_state.game_over and st.session_state.turn==HUM:
+        st.markdown(f"<div class='turn-banner'>✅ 지금은 <b>Cool Choi 차례</b>입니다. 이동 ➜ 사격 순서로 진행!</div>", unsafe_allow_html=True)
+
+    # 게임 시작
     if not st.session_state.timer_started:
         if st.button("게임 시작 ▶", use_container_width=False):
             st.session_state.timer_started = True
@@ -350,7 +314,7 @@ with left:
             st.rerun()
 
     st.title("Cool Choi Amazons")
-    st.caption("말을 퀸처럼 이동 → 도착칸에서 또 퀸처럼 화살(블록)을 발사해 빈칸을 막기. 상대가 더 이상 이동 못 하거나, 생각 시간 10분을 초과하면 패배.")
+    st.caption("말을 퀸처럼 이동 → 도착칸에서 또 퀸처럼 화살(블록)을 발사. 상대가 더 이상 이동 못 하거나, 생각 시간 10분을 초과하면 패배.")
 
 with right:
     diff = st.slider("난이도 (1 쉬움 ··· 15 매우 어려움)", 1, 15, st.session_state.get("difficulty",5))
@@ -359,76 +323,89 @@ with right:
     if c1.button("새 게임", use_container_width=True):
         reset_game(); st.rerun()
     if c2.button("되돌리기(1수)", use_container_width=True):
-        hist: List[Board] = st.session_state.get("hist", [])
-        if hist: st.session_state.board = hist.pop()
+        if st.session_state.hist:
+            st.session_state.board = st.session_state.hist.pop()
+            # 되돌리면 내 차례로 설정 & 합법상태 초기화
+            st.session_state.turn = HUM
+            st.session_state.phase = "select"
+            st.session_state.sel_from = None; st.session_state.sel_to = None; st.session_state.legal = set()
         st.rerun()
-st.session_state.setdefault("hist", [])
 
 board: Board = st.session_state.board
 
-# ================= 렌더/입력 =================
+# ========== 렌더/입력 ==========
+def recompute_legal_if_needed():
+    """세션 상태와 보드를 기준으로 합법 수 재계산(안정성↑)."""
+    if st.session_state.phase == "move" and st.session_state.sel_from:
+        r,c = st.session_state.sel_from
+        if in_bounds(r,c) and board[r][c]==HUM:
+            st.session_state.legal = set(legal_dests_from(board,r,c))
+        else:
+            st.session_state.phase="select"; st.session_state.sel_from=None; st.session_state.legal=set()
+    elif st.session_state.phase == "shoot" and st.session_state.sel_to:
+        r,c = st.session_state.sel_to
+        if in_bounds(r,c) and board[r][c]==HUM:
+            st.session_state.legal = set(legal_shots_from(board,r,c))
+        else:
+            st.session_state.phase="select"; st.session_state.sel_from=None; st.session_state.sel_to=None; st.session_state.legal=set()
+
+recompute_legal_if_needed()
+
 def cell_label(r:int,c:int)->str:
-    label = EMO_EMP
-    cell = board[r][c]
+    label = EMO_EMP; cell = board[r][c]
     if cell==HUM: label = EMO_HUM
     elif cell==CPU: label = EMO_CPU
     elif cell==BLOCK: label = EMO_BLK
 
     if not st.session_state.game_over and st.session_state.turn==HUM:
-        if st.session_state.phase=="move" and (r,c) in st.session_state.legal and cell==EMPTY:
-            label = EMO_MOVE
-        elif st.session_state.phase=="shoot" and (r,c) in st.session_state.legal and cell==EMPTY:
-            label = EMO_SHOT
+        if st.session_state.phase=="move" and (r,c) in st.session_state.legal and cell==EMPTY: label = EMO_MOVE
+        elif st.session_state.phase=="shoot" and (r,c) in st.session_state.legal and cell==EMPTY: label = EMO_SHOT
 
-    if st.session_state.turn==HUM and st.session_state.sel_from==(r,c) and st.session_state.phase in ("move","shoot"):
-        label += "◉"
-    if st.session_state.highlight_to == (r,c):
-        label += "✓"
-    hm = st.session_state.last_human_move
-    cm = st.session_state.last_cpu_move
+    if st.session_state.turn==HUM and st.session_state.sel_from==(r,c) and st.session_state.phase in ("move","shoot"): label += "◉"
+    if st.session_state.highlight_to == (r,c): label += "✓"
+    hm = st.session_state.last_human_move; cm = st.session_state.last_cpu_move
     if hm and hm.to==(r,c): label += "✓"
     if cm and cm.to==(r,c): label += "✓"
-    if st.session_state.last_shot_pos == (r,c) and cell==BLOCK:
-        label += "✳"
+    if st.session_state.last_shot_pos == (r,c) and cell==BLOCK: label += "✳"
     return label
 
+def push_history():
+    """변경 전 스냅샷 저장(되돌리기 안정)."""
+    st.session_state.hist.append(clone(board))
+
 def on_click(r:int,c:int):
-    if st.session_state.game_over: return
-    if st.session_state.turn!=HUM: return
+    if st.session_state.game_over or st.session_state.turn!=HUM: return
     phase = st.session_state.phase
 
     if phase=="select":
         if board[r][c]==HUM:
             st.session_state.sel_from = (r,c)
             st.session_state.legal = set(legal_dests_from(board,r,c))
-            st.session_state.phase = "move"
-            st.rerun()
+            st.session_state.phase = "move"; st.rerun()
 
     elif phase=="move":
+        recompute_legal_if_needed()
         if (r,c) in st.session_state.legal:
             fr = st.session_state.sel_from
+            push_history()  # 이동 전 상태 저장
             nb = clone(board); nb[fr[0]][fr[1]] = EMPTY; nb[r][c] = HUM
             st.session_state.board = nb
-            st.session_state.sel_to = (r,c)
-            st.session_state.highlight_to = (r,c)
+            st.session_state.sel_to = (r,c); st.session_state.highlight_to = (r,c)
             st.session_state.legal = set(legal_shots_from(nb,r,c))
-            st.session_state.phase = "shoot"
-            st.rerun()
+            st.session_state.phase = "shoot"; st.rerun()
 
     elif phase=="shoot":
+        recompute_legal_if_needed()
         if (r,c) in st.session_state.legal:
+            push_history()  # 사격 전 상태 저장
             st.session_state.board[r][c] = BLOCK
             st.session_state.last_shot_pos = (r,c)
             hm = Move(st.session_state.sel_from, st.session_state.sel_to, (r,c))
             st.session_state.last_human_move = hm
-            st.session_state.hist.append(clone(board))
-            check_flag_fall()
             st.session_state.turn = CPU
             st.session_state.phase = "select"
-            st.session_state.sel_from = None
-            st.session_state.sel_to = None
-            st.session_state.legal = set()
-            st.session_state.highlight_to = None
+            st.session_state.sel_from = None; st.session_state.sel_to = None
+            st.session_state.legal = set(); st.session_state.highlight_to = None
             st.rerun()
 
 # 안내 캡션
@@ -438,7 +415,7 @@ caption_cpu = f"{EMO_CPU}=컴퓨터" + (" (승리)" if who and "컴퓨터" in wh
 st.subheader("보드")
 st.caption(f"{caption_hum}  {caption_cpu}  {EMO_BLK}=블록  ({EMO_MOVE} 이동 가능, {EMO_SHOT} 사격 가능 · ◉ 선택 · ✓ 방금 이동 · ✳ 최근 블록)")
 
-# ======= 보드 렌더(정사각형 보장: 열 폭을 고정) =======
+# 보드 렌더
 st.markdown('<div class="board-wrap"><div class="board-grid">', unsafe_allow_html=True)
 for r in range(SIZE):
     cols = st.columns(SIZE)
@@ -446,15 +423,13 @@ for r in range(SIZE):
         label = cell_label(r,c)
         clickable = False
         if not st.session_state.game_over and st.session_state.turn==HUM:
-            if st.session_state.phase=="select" and board[r][c]==HUM:
-                clickable=True
-            elif st.session_state.phase in ("move","shoot") and (r,c) in st.session_state.legal:
-                clickable=True
+            if st.session_state.phase=="select" and board[r][c]==HUM: clickable=True
+            elif st.session_state.phase in ("move","shoot") and (r,c) in st.session_state.legal: clickable=True
         if cols[c].button(label, key=f"cell_{r}_{c}", disabled=not clickable):
             on_click(r,c)
 st.markdown("</div></div>", unsafe_allow_html=True)
 
-# ================= 엔드체크 & AI =================
+# ========== 엔드체크 & AI ==========
 def end_game(winner_label: str, human_win: bool):
     st.session_state.game_over = True
     st.session_state.winner = winner_label
@@ -468,44 +443,43 @@ def announce_and_set(who: str, ok=True):
         unsafe_allow_html=True
     )
 
-if not st.session_state.game_over:
-    if st.session_state.turn==HUM:
-        if not has_any_move(board,HUM):
-            announce_and_set("컴퓨터", ok=False)
-            end_game("컴퓨터", human_win=False)
-        check_flag_fall()
+if not st.session_state.game_over and st.session_state.turn==HUM:
+    if not has_any_move(board,HUM):
+        announce_and_set("컴퓨터", ok=False); end_game("컴퓨터", human_win=False)
+    check_flag_fall()
 
+# --- 컴퓨터 차례 ---
 if not st.session_state.game_over and st.session_state.turn==CPU:
     if not has_any_move(board,CPU):
-        announce_and_set("플레이어", ok=True)
-        end_game("플레이어", human_win=True)
+        announce_and_set("플레이어", ok=True); end_game("플레이어", human_win=True)
     else:
+        # 안전: 변경 전 상태 저장(되돌리기 가능)
+        push_history()
         with st.spinner("컴퓨터 생각중..."):
             t0 = time.perf_counter()
-            mv = ai_move(board, st.session_state.difficulty)
+            mv = ai_move(board, st.session_state.difficulty, st.session_state.MAX_THINK_SEC)
             t1 = time.perf_counter()
             if st.session_state.timer_started:
                 st.session_state.remain_cpu -= max(0.0, t1 - t0)
         check_flag_fall()
         if not st.session_state.game_over:
             if mv is None:
-                announce_and_set("플레이어", ok=True)
-                end_game("플레이어", human_win=True)
+                announce_and_set("플레이어", ok=True); end_game("플레이어", human_win=True)
             else:
                 st.session_state.board = apply_move(board, mv, CPU)
                 st.session_state.last_cpu_move = mv
                 st.session_state.last_shot_pos = mv.shot
+                # 턴 전환
                 st.session_state.turn = HUM
                 st.session_state.phase = "select"
-                st.session_state.sel_from = None
-                st.session_state.sel_to = None
-                st.session_state.legal = set()
-                st.session_state.last_update = time.time()
+                st.session_state.sel_from = None; st.session_state.sel_to = None
+                st.session_state.legal = set(); st.session_state.last_update = time.time()
         st.rerun()
 
+# 팝업
 if st.session_state.show_dialog and st.session_state.winner:
     winner_dialog(st.session_state.winner)
 
+# 내 차례: 1초 주기 갱신
 if not st.session_state.game_over and st.session_state.turn == HUM and st.session_state.timer_started:
-    time.sleep(1.0)
-    st.rerun()
+    time.sleep(1.0); st.rerun()
