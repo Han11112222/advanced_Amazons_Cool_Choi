@@ -98,7 +98,7 @@ def piece_positions(b:Board, side:int)->List[Tuple[int,int]]:
     return [(r,c) for r in range(SIZE) for c in range(SIZE) if b[r][c]==token]
 
 def legal_dests_from(b:Board, r:int,c:int)->List[Tuple[int,int]]:
-    out=[]; 
+    out=[]
     for dr,dc in DIRS: out.extend(iter_ray(b,r,c,dr,dc))
     return out
 
@@ -191,7 +191,7 @@ def ai_move(b:Board, difficulty:int, time_budget:float)->Optional[Move]:
     난이도 1~15 + 시간예산(초). 예산을 넘기면 즉시 현재 최선 또는 안전한 백업 수 반환.
     """
     start = time.perf_counter()
-    # 난이도→검색 파라미터(이전과 동일)
+    # 난이도→검색 파라미터
     if difficulty <= 3:
         depth=1; P=dict(k_dest_d1=9, k_shot_d1=7, cap_d1=80)
     elif difficulty <= 7:
@@ -206,13 +206,11 @@ def ai_move(b:Board, difficulty:int, time_budget:float)->Optional[Move]:
 
     best=None; val_best=-1_000_000
     for mv in root:
-        # 시간예산 체크(중간 탈출 허용)
         if time.perf_counter() - start > time_budget:
             break
         v = search(apply_move(b,mv,CPU), depth-1, -1_000_000, 1_000_000, HUM, P)
         if v>val_best: val_best=v; best=mv
 
-    # 백업: 시간이 없거나 탐색 실패 시 무작위 합법 수
     if best is None:
         best = random.choice(root)
     return best
@@ -285,38 +283,54 @@ def winner_dialog(who: str):
     if colB.button("새 게임", use_container_width=True): new_game(); st.rerun()
 
 # ========== 상단 UI ==========
+# (1) 타이머 표시용 데이터는 컬럼 밖에서 계산
+hum_left = st.session_state.remain_hum
+cpu_left = st.session_state.remain_cpu
+hum_low = hum_left <= 30
+cpu_low = cpu_left <= 30
+hum_classes = "timer-box"
+cpu_classes = "timer-box"
+if st.session_state.turn == HUM: hum_classes += " timer-active"
+else: cpu_classes += " timer-active"
+if hum_low: hum_classes += " timer-low"
+if cpu_low: cpu_classes += " timer-low"
+
+# 두 컬럼: 왼쪽(제목/게임시작), 오른쪽(타이머/배너/조작)
 left, right = st.columns([1,1])
 
 with left:
-    hum_left = st.session_state.remain_hum
-    cpu_left = st.session_state.remain_cpu
-    hum_low = hum_left <= 30; cpu_low = cpu_left <= 30
-    hum_classes = "timer-box"; cpu_classes = "timer-box"
-    if st.session_state.turn == HUM: hum_classes += " timer-active"
-    else: cpu_classes += " timer-active"
-    if hum_low: hum_classes += " timer-low"
-    if cpu_low: cpu_classes += " timer-low"
+    # 제목/설명 & 게임시작 버튼은 왼쪽에 유지
+    st.title("Cool Choi Amazons")
+    st.caption("말을 퀸처럼 이동 → 도착칸에서 또 퀸처럼 화살(블록)을 발사. 상대가 더 이상 이동 못 하거나, 생각 시간 10분을 초과하면 패배.")
 
-    st.markdown('<div class="timer-row">', unsafe_allow_html=True)
-    st.markdown(f'<span class="{cpu_classes}"><span class="timer-name">{EMO_CPU} 컴퓨터</span><span class="timer-time">{fmt_time(cpu_left)}</span></span>', unsafe_allow_html=True)
-    st.markdown(f'<span class="{hum_classes}"><span class="timer-name">{EMO_HUM} Cool Choi</span><span class="timer-time">{fmt_time(hum_left)}</span></span>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # 내 차례 신호
-    if not st.session_state.game_over and st.session_state.turn==HUM:
-        st.markdown(f"<div class='turn-banner'>✅ 지금은 <b>Cool Choi 차례</b>입니다. 이동 ➜ 사격 순서로 진행!</div>", unsafe_allow_html=True)
-
-    # 게임 시작
     if not st.session_state.timer_started:
         if st.button("게임 시작 ▶", use_container_width=False):
             st.session_state.timer_started = True
             st.session_state.last_update = time.time()
             st.rerun()
 
-    st.title("Cool Choi Amazons")
-    st.caption("말을 퀸처럼 이동 → 도착칸에서 또 퀸처럼 화살(블록)을 발사. 상대가 더 이상 이동 못 하거나, 생각 시간 10분을 초과하면 패배.")
-
 with right:
+    # 👉 오른쪽 상단에 타이머/배너 배치 (요청 반영)
+    st.markdown('<div class="timer-row">', unsafe_allow_html=True)
+    st.markdown(
+        f'<span class="{cpu_classes}"><span class="timer-name">{EMO_CPU} 컴퓨터</span>'
+        f'<span class="timer-time">{fmt_time(cpu_left)}</span></span>',
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        f'<span class="{hum_classes}"><span class="timer-name">{EMO_HUM} Cool Choi</span>'
+        f'<span class="timer-time">{fmt_time(hum_left)}</span></span>',
+        unsafe_allow_html=True
+    )
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    if not st.session_state.game_over and st.session_state.turn==HUM:
+        st.markdown(
+            "<div class='turn-banner'>✅ 지금은 <b>Cool Choi 차례</b>입니다. 이동 ➜ 사격 순서로 진행!</div>",
+            unsafe_allow_html=True
+        )
+
+    # 타이머/배너 아래에 난이도 + 조작 버튼
     diff = st.slider("난이도 (1 쉬움 ··· 15 매우 어려움)", 1, 15, st.session_state.get("difficulty",5))
     st.session_state.difficulty = diff
     c1,c2 = st.columns(2)
@@ -325,7 +339,6 @@ with right:
     if c2.button("되돌리기(1수)", use_container_width=True):
         if st.session_state.hist:
             st.session_state.board = st.session_state.hist.pop()
-            # 되돌리면 내 차례로 설정 & 합법상태 초기화
             st.session_state.turn = HUM
             st.session_state.phase = "select"
             st.session_state.sel_from = None; st.session_state.sel_to = None; st.session_state.legal = set()
@@ -453,7 +466,6 @@ if not st.session_state.game_over and st.session_state.turn==CPU:
     if not has_any_move(board,CPU):
         announce_and_set("플레이어", ok=True); end_game("플레이어", human_win=True)
     else:
-        # 안전: 변경 전 상태 저장(되돌리기 가능)
         push_history()
         with st.spinner("컴퓨터 생각중..."):
             t0 = time.perf_counter()
@@ -469,7 +481,6 @@ if not st.session_state.game_over and st.session_state.turn==CPU:
                 st.session_state.board = apply_move(board, mv, CPU)
                 st.session_state.last_cpu_move = mv
                 st.session_state.last_shot_pos = mv.shot
-                # 턴 전환
                 st.session_state.turn = HUM
                 st.session_state.phase = "select"
                 st.session_state.sel_from = None; st.session_state.sel_to = None
