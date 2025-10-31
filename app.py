@@ -45,8 +45,9 @@ st.markdown(
     }}
     .board-grid .stButton > button:disabled {{ opacity: 1.0 !important; }}
 
-    /* 상단 타이머: 가로 배치 (한 줄만) */
-    .timer-row {{
+    /* 기본적으로 모든 timer-row 숨김 → 내가 지정한 래퍼(#main-timer-wrap) 안만 보이게 */
+    .timer-row {{ display:none; }}
+    #main-timer-wrap .timer-row {{
         display:flex; gap:10px; align-items:flex-start; flex-wrap:nowrap;
         margin-top:8px; margin-bottom:4px;
     }}
@@ -210,7 +211,6 @@ def ai_move(b:Board, difficulty:int, time_budget:float)->Optional[Move]:
             break
         v = search(apply_move(b,mv,CPU), depth-1, -1_000_000, 1_000_000, HUM, P)
         if v>val_best: val_best=v; best=mv
-
     if best is None:
         best = random.choice(root)
     return best
@@ -305,17 +305,19 @@ with left:
             st.session_state.last_update = time.time()
             st.rerun()
 
-    # ✅ 상단 단일 타이머(가로 한 줄만 유지). *아래 중복 시계 제거됨*
+    # ✅ 상단 단일 타이머(가로 한 줄). 전역 CSS로 다른 timer-row는 전부 숨김.
     timer_html = f'''
-    <div class="timer-row">
-      <span class="{cpu_classes}">
-        <span class="timer-name">{EMO_CPU} 컴퓨터</span>
-        <span class="timer-time">{fmt_time(cpu_left)}</span>
-      </span>
-      <span class="{hum_classes}">
-        <span class="timer-name">{EMO_HUM} Cool Choi</span>
-        <span class="timer-time">{fmt_time(hum_left)}</span>
-      </span>
+    <div id="main-timer-wrap">
+      <div class="timer-row">
+        <span class="{cpu_classes}">
+          <span class="timer-name">{EMO_CPU} 컴퓨터</span>
+          <span class="timer-time">{fmt_time(cpu_left)}</span>
+        </span>
+        <span class="{hum_classes}">
+          <span class="timer-name">{EMO_HUM} Cool Choi</span>
+          <span class="timer-time">{fmt_time(hum_left)}</span>
+        </span>
+      </div>
     </div>
     '''
     st.markdown(timer_html, unsafe_allow_html=True)
