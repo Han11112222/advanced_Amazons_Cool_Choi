@@ -45,7 +45,10 @@ st.markdown(
     }}
     .board-grid .stButton > button:disabled {{ opacity: 1.0 !important; }}
 
-    /* 타이머 박스 */
+    /* 타이머(좌측, 가로 배치) */
+    .timer-row {{
+        display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap; margin-top:8px; margin-bottom:4px;
+    }}
     .timer-box {{
         display:inline-block; padding:10px 14px; border-radius:12px; font-weight:700; font-size:20px;
         border:1px solid #e5e7eb; background:#f9fafb; color:#111827; min-width:180px;
@@ -55,13 +58,12 @@ st.markdown(
     .timer-name {{ font-size:13px; font-weight:600; display:block; opacity:.8; margin-bottom:4px; }}
     .timer-time {{ font-variant-numeric: tabular-nums; }}
 
-    /* 내 차례 신호 배너 (아래 줄 전체폭) */
+    /* 내 차례 신호 배너(두 컬럼 아래 전폭) */
     .turn-banner {{
         padding:10px 14px; border-radius:12px; font-weight:800;
         background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;
-        display:inline-flex; align-items:center; gap:6px; margin-top:8px;
-        animation: pulse 1.2s ease-in-out infinite;
-        width:100%;
+        display:flex; align-items:center; gap:6px; animation: pulse 1.2s ease-in-out infinite;
+        width:100%; box-sizing:border-box; margin: 6px 0 10px 0;
     }}
     @keyframes pulse {{
         0% {{ box-shadow:0 0 0 0 rgba(16,185,129,.4); }}
@@ -302,42 +304,37 @@ with left:
             st.session_state.last_update = time.time()
             st.rerun()
 
+    # ✅ 타이머: 좌측에 가로로 나란히 배치
+    st.markdown('<div class="timer-row">', unsafe_allow_html=True)
+    st.markdown(
+        f'<span class="{cpu_classes}"><span class="timer-name">{EMO_CPU} 컴퓨터</span>'
+        f'<span class="timer-time">{fmt_time(cpu_left)}</span></span>',
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        f'<span class="{hum_classes}"><span class="timer-name">{EMO_HUM} Cool Choi</span>'
+        f'<span class="timer-time">{fmt_time(hum_left)}</span></span>',
+        unsafe_allow_html=True
+    )
+    st.markdown('</div>', unsafe_allow_html=True)
+
 with right:
-    # ── 한 줄 구성: [타이머] | [난이도 + 버튼]  ──
-    timers_col, ctrl_col = st.columns([0.42, 0.58])
+    diff = st.slider("난이도 (1 쉬움 ··· 15 매우 어려움)", 1, 15, st.session_state.get("difficulty",5))
+    st.session_state.difficulty = diff
+    c1,c2 = st.columns(2)
+    if c1.button("새 게임", use_container_width=True):
+        reset_game(); st.rerun()
+    if c2.button("되돌리기(1수)", use_container_width=True):
+        if st.session_state.hist:
+            st.session_state.board = st.session_state.hist.pop()
+            st.session_state.turn = HUM
+            st.session_state.phase = "select"
+            st.session_state.sel_from = None; st.session_state.sel_to = None; st.session_state.legal = set()
+        st.rerun()
 
-    with timers_col:
-        st.markdown(
-            f"""
-            <span class="{cpu_classes}">
-                <span class="timer-name">{EMO_CPU} 컴퓨터</span>
-                <span class="timer-time">{fmt_time(cpu_left)}</span>
-            </span><br/>
-            <span class="{hum_classes}" style="margin-top:8px; display:inline-block;">
-                <span class="timer-name">{EMO_HUM} Cool Choi</span>
-                <span class="timer-time">{fmt_time(hum_left)}</span>
-            </span>
-            """,
-            unsafe_allow_html=True
-        )
-
-    with ctrl_col:
-        diff = st.slider("난이도 (1 쉬움 ··· 15 매우 어려움)", 1, 15, st.session_state.get("difficulty",5))
-        st.session_state.difficulty = diff
-        c1, c2 = st.columns(2)
-        if c1.button("새 게임", use_container_width=True):
-            reset_game(); st.rerun()
-        if c2.button("되돌리기(1수)", use_container_width=True):
-            if st.session_state.hist:
-                st.session_state.board = st.session_state.hist.pop()
-                st.session_state.turn = HUM
-                st.session_state.phase = "select"
-                st.session_state.sel_from = None; st.session_state.sel_to = None; st.session_state.legal = set()
-            st.rerun()
-
-    # ── 아래 줄: 차례 배너 ──
-    if not st.session_state.game_over and st.session_state.turn==HUM:
-        st.markdown("<div class='turn-banner'>✅ 지금은 <b>Cool Choi 차례</b> 입니다. 이동 ➜ 사격 순서로 진행!</div>", unsafe_allow_html=True)
+# ✅ 두 컬럼 아래: 차례 배너(전폭)
+if not st.session_state.game_over and st.session_state.turn==HUM:
+    st.markdown("<div class='turn-banner'>✅ 지금은 <b>Cool Choi 차례</b> 입니다. 이동 ➜ 사격 순서로 진행!</div>", unsafe_allow_html=True)
 
 board: Board = st.session_state.board
 
