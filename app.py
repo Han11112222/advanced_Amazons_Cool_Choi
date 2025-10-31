@@ -10,7 +10,7 @@ st.set_page_config(page_title="Cool Choi Amazons", layout="wide")
 
 SIZE = 10
 EMPTY, HUM, CPU, BLOCK = 0, 1, 2, 3
-DIRS = [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),( -1,1),(1,-1),(1,1)]
+DIRS = [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(-1,1),(1,-1),(1,1)]
 
 # 이모지
 EMO_HUM = "🔵"
@@ -45,19 +45,7 @@ st.markdown(
     }}
     .board-grid .stButton > button:disabled {{ opacity: 1.0 !important; }}
 
-    /* 상단바: 타이머(좌) + 배너(우) */
-    .topbar {{
-        display:flex; align-items:flex-start; gap:14px; margin-bottom:8px;
-        flex-wrap: nowrap;   /* 넓은 화면에선 같은 줄 고정 */
-    }}
-    @media (max-width: 900px) {{
-        .topbar {{ flex-wrap: wrap; }}  /* 좁아지면 자동 줄바꿈 */
-    }}
-    .timers-col {{
-        display:flex; flex-direction:column; gap:8px;
-        min-width:200px;     /* 고정 폭 → 배너는 남은 공간 사용 */
-        flex: 0 0 auto;
-    }}
+    /* 타이머 박스 */
     .timer-box {{
         display:inline-block; padding:10px 14px; border-radius:12px; font-weight:700; font-size:20px;
         border:1px solid #e5e7eb; background:#f9fafb; color:#111827; min-width:180px;
@@ -67,14 +55,13 @@ st.markdown(
     .timer-name {{ font-size:13px; font-weight:600; display:block; opacity:.8; margin-bottom:4px; }}
     .timer-time {{ font-variant-numeric: tabular-nums; }}
 
-    /* 내 차례 신호 배너 */
+    /* 내 차례 신호 배너 (아래 줄 전체폭) */
     .turn-banner {{
         padding:10px 14px; border-radius:12px; font-weight:800;
         background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;
-        display:inline-flex; align-items:center; gap:6px;
+        display:inline-flex; align-items:center; gap:6px; margin-top:8px;
         animation: pulse 1.2s ease-in-out infinite;
-        flex: 1 1 auto;      /* 남은 가로폭 채움 */
-        max-width: 100%;
+        width:100%;
     }}
     @keyframes pulse {{
         0% {{ box-shadow:0 0 0 0 rgba(16,185,129,.4); }}
@@ -293,7 +280,6 @@ def winner_dialog(who: str):
     if colB.button("새 게임", use_container_width=True): new_game(); st.rerun()
 
 # ========== 상단 UI ==========
-# 타이머 클래스 계산
 hum_left = st.session_state.remain_hum
 cpu_left = st.session_state.remain_cpu
 hum_low = hum_left <= 30
@@ -317,43 +303,41 @@ with left:
             st.rerun()
 
 with right:
-    # 👉 한 번의 markdown으로 '타이머(좌) + 배너(우)'를 하나의 flex 행에 렌더
-    banner_html = ""
+    # ── 한 줄 구성: [타이머] | [난이도 + 버튼]  ──
+    timers_col, ctrl_col = st.columns([0.42, 0.58])
+
+    with timers_col:
+        st.markdown(
+            f"""
+            <span class="{cpu_classes}">
+                <span class="timer-name">{EMO_CPU} 컴퓨터</span>
+                <span class="timer-time">{fmt_time(cpu_left)}</span>
+            </span><br/>
+            <span class="{hum_classes}" style="margin-top:8px; display:inline-block;">
+                <span class="timer-name">{EMO_HUM} Cool Choi</span>
+                <span class="timer-time">{fmt_time(hum_left)}</span>
+            </span>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with ctrl_col:
+        diff = st.slider("난이도 (1 쉬움 ··· 15 매우 어려움)", 1, 15, st.session_state.get("difficulty",5))
+        st.session_state.difficulty = diff
+        c1, c2 = st.columns(2)
+        if c1.button("새 게임", use_container_width=True):
+            reset_game(); st.rerun()
+        if c2.button("되돌리기(1수)", use_container_width=True):
+            if st.session_state.hist:
+                st.session_state.board = st.session_state.hist.pop()
+                st.session_state.turn = HUM
+                st.session_state.phase = "select"
+                st.session_state.sel_from = None; st.session_state.sel_to = None; st.session_state.legal = set()
+            st.rerun()
+
+    # ── 아래 줄: 차례 배너 ──
     if not st.session_state.game_over and st.session_state.turn==HUM:
-        banner_html = "✅ 지금은 <b>Cool Choi 차례</b> 입니다. 이동 ➜ 사격 순서로 진행!"
-    # 컴퓨터 차례엔 배너를 비워 동일 행만 유지
-
-    st.markdown(
-        f"""
-        <div class="topbar">
-            <div class="timers-col">
-                <span class="{cpu_classes}">
-                    <span class="timer-name">{EMO_CPU} 컴퓨터</span>
-                    <span class="timer-time">{fmt_time(cpu_left)}</span>
-                </span>
-                <span class="{hum_classes}">
-                    <span class="timer-name">{EMO_HUM} Cool Choi</span>
-                    <span class="timer-time">{fmt_time(hum_left)}</span>
-                </span>
-            </div>
-            {'<div class="turn-banner">'+banner_html+'</div>' if banner_html else ''}
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    diff = st.slider("난이도 (1 쉬움 ··· 15 매우 어려움)", 1, 15, st.session_state.get("difficulty",5))
-    st.session_state.difficulty = diff
-    c1,c2 = st.columns(2)
-    if c1.button("새 게임", use_container_width=True):
-        reset_game(); st.rerun()
-    if c2.button("되돌리기(1수)", use_container_width=True):
-        if st.session_state.hist:
-            st.session_state.board = st.session_state.hist.pop()
-            st.session_state.turn = HUM
-            st.session_state.phase = "select"
-            st.session_state.sel_from = None; st.session_state.sel_to = None; st.session_state.legal = set()
-        st.rerun()
+        st.markdown("<div class='turn-banner'>✅ 지금은 <b>Cool Choi 차례</b> 입니다. 이동 ➜ 사격 순서로 진행!</div>", unsafe_allow_html=True)
 
 board: Board = st.session_state.board
 
