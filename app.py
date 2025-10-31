@@ -45,20 +45,24 @@ st.markdown(
     }}
     .board-grid .stButton > button:disabled {{ opacity: 1.0 !important; }}
 
-    /* 기본적으로 모든 timer-row 숨김 → 내가 지정한 래퍼(#main-timer-wrap) 안만 보이게 */
-    .timer-row {{ display:none; }}
+    /* ========= 타이머 중복 완전 제거 =========
+       1) 기본적으로 모든 .timer-row, .timer-box 숨김
+       2) #main-timer-wrap 내부의 것만 보이게
+    */
+    .timer-row {{ display:none !important; }}
+    .timer-box {{ display:none !important; }}
     #main-timer-wrap .timer-row {{
-        display:flex; gap:10px; align-items:flex-start; flex-wrap:nowrap;
+        display:flex !important; gap:10px; align-items:flex-start; flex-wrap:nowrap;
         margin-top:8px; margin-bottom:4px;
     }}
-    .timer-box {{
-        display:inline-block; padding:10px 14px; border-radius:12px; font-weight:700; font-size:20px;
+    #main-timer-wrap .timer-box {{
+        display:inline-block !important; padding:10px 14px; border-radius:12px; font-weight:700; font-size:20px;
         border:1px solid #e5e7eb; background:#f9fafb; color:#111827; min-width:180px;
     }}
-    .timer-active {{ background:#eef2ff; border-color:#c7d2fe; }}
-    .timer-low {{ background:#fef2f2; border-color:#fecaca; color:#991b1b; }}
-    .timer-name {{ font-size:13px; font-weight:600; display:block; opacity:.8; margin-bottom:4px; }}
-    .timer-time {{ font-variant-numeric: tabular-nums; }}
+    #main-timer-wrap .timer-active {{ background:#eef2ff; border-color:#c7d2fe; }}
+    #main-timer-wrap .timer-low {{ background:#fef2f2; border-color:#fecaca; color:#991b1b; }}
+    #main-timer-wrap .timer-name {{ font-size:13px; font-weight:600; display:block; opacity:.8; margin-bottom:4px; }}
+    #main-timer-wrap .timer-time {{ font-variant-numeric: tabular-nums; }}
 
     /* 차례 배너(전폭) */
     .turn-banner {{
@@ -305,7 +309,7 @@ with left:
             st.session_state.last_update = time.time()
             st.rerun()
 
-    # ✅ 상단 단일 타이머(가로 한 줄). 전역 CSS로 다른 timer-row는 전부 숨김.
+    # ✅ 상단 단일 타이머(가로 한 줄) — *오직 이 래퍼만 표시*
     timer_html = f'''
     <div id="main-timer-wrap">
       <div class="timer-row">
