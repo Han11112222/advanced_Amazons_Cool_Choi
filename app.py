@@ -45,7 +45,15 @@ st.markdown(
     }}
     .board-grid .stButton > button:disabled {{ opacity: 1.0 !important; }}
 
-    .timer-row {{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }}
+    /* 상단바: 타이머(좌) + 배너(우) */
+    .topbar {{
+        display:flex; align-items:flex-start; gap:14px; flex-wrap:wrap;
+        margin-bottom:8px;
+    }}
+    .timers-col {{
+        display:flex; flex-direction:column; gap:8px;
+        min-width:200px;
+    }}
     .timer-box {{
         display:inline-block; padding:10px 14px; border-radius:12px; font-weight:700; font-size:20px;
         border:1px solid #e5e7eb; background:#f9fafb; color:#111827; min-width:180px;
@@ -57,10 +65,11 @@ st.markdown(
 
     /* 내 차례 신호 배너 */
     .turn-banner {{
-        margin-top:6px; padding:10px 14px; border-radius:12px; font-weight:800;
+        padding:10px 14px; border-radius:12px; font-weight:800;
         background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;
         display:inline-flex; align-items:center; gap:6px;
         animation: pulse 1.2s ease-in-out infinite;
+        max-width: 520px;
     }}
     @keyframes pulse {{
         0% {{ box-shadow:0 0 0 0 rgba(16,185,129,.4); }}
@@ -191,7 +200,6 @@ def ai_move(b:Board, difficulty:int, time_budget:float)->Optional[Move]:
     난이도 1~15 + 시간예산(초). 예산을 넘기면 즉시 현재 최선 또는 안전한 백업 수 반환.
     """
     start = time.perf_counter()
-    # 난이도→검색 파라미터
     if difficulty <= 3:
         depth=1; P=dict(k_dest_d1=9, k_shot_d1=7, cap_d1=80)
     elif difficulty <= 7:
@@ -244,8 +252,8 @@ def reset_game():
     st.session_state.last_update = time.time()
     st.session_state.timer_started = False
     # 기록
-    st.session_state.hist = []              # 보드 스냅샷 스택
-    st.session_state.MAX_THINK_SEC = 8.0    # CPU 한 수 최대 생각 시간(초)
+    st.session_state.hist = []
+    st.session_state.MAX_THINK_SEC = 8.0
 
 if "board" not in st.session_state:
     reset_game()
@@ -283,7 +291,7 @@ def winner_dialog(who: str):
     if colB.button("새 게임", use_container_width=True): new_game(); st.rerun()
 
 # ========== 상단 UI ==========
-# (1) 타이머 표시용 데이터는 컬럼 밖에서 계산
+# 타이머 표시용 클래스 계산
 hum_left = st.session_state.remain_hum
 cpu_left = st.session_state.remain_cpu
 hum_low = hum_left <= 30
@@ -295,14 +303,11 @@ else: cpu_classes += " timer-active"
 if hum_low: hum_classes += " timer-low"
 if cpu_low: cpu_classes += " timer-low"
 
-# 두 컬럼: 왼쪽(제목/게임시작), 오른쪽(타이머/배너/조작)
 left, right = st.columns([1,1])
 
 with left:
-    # 제목/설명 & 게임시작 버튼은 왼쪽에 유지
     st.title("Cool Choi Amazons")
     st.caption("말을 퀸처럼 이동 → 도착칸에서 또 퀸처럼 화살(블록)을 발사. 상대가 더 이상 이동 못 하거나, 생각 시간 10분을 초과하면 패배.")
-
     if not st.session_state.timer_started:
         if st.button("게임 시작 ▶", use_container_width=False):
             st.session_state.timer_started = True
@@ -310,27 +315,29 @@ with left:
             st.rerun()
 
 with right:
-    # 👉 오른쪽 상단에 타이머/배너 배치 (요청 반영)
-    st.markdown('<div class="timer-row">', unsafe_allow_html=True)
+    # 👉 타이머(좌) + 배너(우)를 한 줄(topbar)로
+    st.markdown('<div class="topbar">', unsafe_allow_html=True)
+    st.markdown('<div class="timers-col">', unsafe_allow_html=True)
     st.markdown(
         f'<span class="{cpu_classes}"><span class="timer-name">{EMO_CPU} 컴퓨터</span>'
-        f'<span class="timer-time">{fmt_time(cpu_left)}</span></span>',
-        unsafe_allow_html=True
+        f'<span class="timer-time">{fmt_time(cpu_left)}</span></span>', unsafe_allow_html=True
     )
     st.markdown(
         f'<span class="{hum_classes}"><span class="timer-name">{EMO_HUM} Cool Choi</span>'
-        f'<span class="timer-time">{fmt_time(hum_left)}</span></span>',
-        unsafe_allow_html=True
+        f'<span class="timer-time">{fmt_time(hum_left)}</span></span>', unsafe_allow_html=True
     )
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)  # /timers-col
 
+    banner_html = ""
     if not st.session_state.game_over and st.session_state.turn==HUM:
-        st.markdown(
-            "<div class='turn-banner'>✅ 지금은 <b>Cool Choi 차례</b>입니다. 이동 ➜ 사격 순서로 진행!</div>",
-            unsafe_allow_html=True
-        )
+        banner_html = "<div class='turn-banner'>✅ 지금은 <b>Cool Choi 차례</b> 입니다. 이동 ➜ 사격 순서로 진행!</div>"
+    else:
+        # 컴퓨터 차례에는 배너를 비움(자리차지 방지)
+        banner_html = ""
 
-    # 타이머/배너 아래에 난이도 + 조작 버튼
+    st.markdown(banner_html, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)  # /topbar
+
     diff = st.slider("난이도 (1 쉬움 ··· 15 매우 어려움)", 1, 15, st.session_state.get("difficulty",5))
     st.session_state.difficulty = diff
     c1,c2 = st.columns(2)
@@ -348,7 +355,6 @@ board: Board = st.session_state.board
 
 # ========== 렌더/입력 ==========
 def recompute_legal_if_needed():
-    """세션 상태와 보드를 기준으로 합법 수 재계산(안정성↑)."""
     if st.session_state.phase == "move" and st.session_state.sel_from:
         r,c = st.session_state.sel_from
         if in_bounds(r,c) and board[r][c]==HUM:
@@ -383,7 +389,6 @@ def cell_label(r:int,c:int)->str:
     return label
 
 def push_history():
-    """변경 전 스냅샷 저장(되돌리기 안정)."""
     st.session_state.hist.append(clone(board))
 
 def on_click(r:int,c:int):
@@ -400,7 +405,7 @@ def on_click(r:int,c:int):
         recompute_legal_if_needed()
         if (r,c) in st.session_state.legal:
             fr = st.session_state.sel_from
-            push_history()  # 이동 전 상태 저장
+            push_history()
             nb = clone(board); nb[fr[0]][fr[1]] = EMPTY; nb[r][c] = HUM
             st.session_state.board = nb
             st.session_state.sel_to = (r,c); st.session_state.highlight_to = (r,c)
@@ -410,7 +415,7 @@ def on_click(r:int,c:int):
     elif phase=="shoot":
         recompute_legal_if_needed()
         if (r,c) in st.session_state.legal:
-            push_history()  # 사격 전 상태 저장
+            push_history()
             st.session_state.board[r][c] = BLOCK
             st.session_state.last_shot_pos = (r,c)
             hm = Move(st.session_state.sel_from, st.session_state.sel_to, (r,c))
