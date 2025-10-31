@@ -45,9 +45,10 @@ st.markdown(
     }}
     .board-grid .stButton > button:disabled {{ opacity: 1.0 !important; }}
 
-    /* 타이머(좌측, 가로 배치) */
+    /* 좌측 타이머: 가로 배치 */
     .timer-row {{
-        display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap; margin-top:8px; margin-bottom:4px;
+        display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap;
+        margin-top:8px; margin-bottom:4px;
     }}
     .timer-box {{
         display:inline-block; padding:10px 14px; border-radius:12px; font-weight:700; font-size:20px;
@@ -58,7 +59,7 @@ st.markdown(
     .timer-name {{ font-size:13px; font-weight:600; display:block; opacity:.8; margin-bottom:4px; }}
     .timer-time {{ font-variant-numeric: tabular-nums; }}
 
-    /* 내 차례 신호 배너(두 컬럼 아래 전폭) */
+    /* 차례 배너(전폭) */
     .turn-banner {{
         padding:10px 14px; border-radius:12px; font-weight:800;
         background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;
@@ -304,19 +305,20 @@ with left:
             st.session_state.last_update = time.time()
             st.rerun()
 
-    # ✅ 타이머: 좌측에 가로로 나란히 배치
-    st.markdown('<div class="timer-row">', unsafe_allow_html=True)
-    st.markdown(
-        f'<span class="{cpu_classes}"><span class="timer-name">{EMO_CPU} 컴퓨터</span>'
-        f'<span class="timer-time">{fmt_time(cpu_left)}</span></span>',
-        unsafe_allow_html=True
-    )
-    st.markdown(
-        f'<span class="{hum_classes}"><span class="timer-name">{EMO_HUM} Cool Choi</span>'
-        f'<span class="timer-time">{fmt_time(hum_left)}</span></span>',
-        unsafe_allow_html=True
-    )
-    st.markdown('</div>', unsafe_allow_html=True)
+    # ✅ 타이머: 좌우(가로)로 한 번에 렌더링
+    timer_html = f'''
+    <div class="timer-row">
+      <span class="{cpu_classes}">
+        <span class="timer-name">{EMO_CPU} 컴퓨터</span>
+        <span class="timer-time">{fmt_time(cpu_left)}</span>
+      </span>
+      <span class="{hum_classes}">
+        <span class="timer-name">{EMO_HUM} Cool Choi</span>
+        <span class="timer-time">{fmt_time(hum_left)}</span>
+      </span>
+    </div>
+    '''
+    st.markdown(timer_html, unsafe_allow_html=True)
 
 with right:
     diff = st.slider("난이도 (1 쉬움 ··· 15 매우 어려움)", 1, 15, st.session_state.get("difficulty",5))
