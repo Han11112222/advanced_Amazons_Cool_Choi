@@ -10,7 +10,7 @@ st.set_page_config(page_title="Cool Choi Amazons", layout="wide")
 
 SIZE = 10
 EMPTY, HUM, CPU, BLOCK = 0, 1, 2, 3
-DIRS = [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(-1,1),(1,-1),(1,1)]
+DIRS = [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),( -1,1),(1,-1),(1,1)]
 
 # 이모지
 EMO_HUM = "🔵"
@@ -47,12 +47,16 @@ st.markdown(
 
     /* 상단바: 타이머(좌) + 배너(우) */
     .topbar {{
-        display:flex; align-items:flex-start; gap:14px; flex-wrap:wrap;
-        margin-bottom:8px;
+        display:flex; align-items:flex-start; gap:14px; margin-bottom:8px;
+        flex-wrap: nowrap;   /* 넓은 화면에선 같은 줄 고정 */
+    }}
+    @media (max-width: 900px) {{
+        .topbar {{ flex-wrap: wrap; }}  /* 좁아지면 자동 줄바꿈 */
     }}
     .timers-col {{
         display:flex; flex-direction:column; gap:8px;
-        min-width:200px;
+        min-width:200px;     /* 고정 폭 → 배너는 남은 공간 사용 */
+        flex: 0 0 auto;
     }}
     .timer-box {{
         display:inline-block; padding:10px 14px; border-radius:12px; font-weight:700; font-size:20px;
@@ -69,7 +73,8 @@ st.markdown(
         background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;
         display:inline-flex; align-items:center; gap:6px;
         animation: pulse 1.2s ease-in-out infinite;
-        max-width: 520px;
+        flex: 1 1 auto;      /* 남은 가로폭 채움 */
+        max-width: 100%;
     }}
     @keyframes pulse {{
         0% {{ box-shadow:0 0 0 0 rgba(16,185,129,.4); }}
@@ -196,9 +201,6 @@ def search(b:Board, depth:int, a:int, bb:int, side:int, P:Dict[str,int])->int:
         return best
 
 def ai_move(b:Board, difficulty:int, time_budget:float)->Optional[Move]:
-    """
-    난이도 1~15 + 시간예산(초). 예산을 넘기면 즉시 현재 최선 또는 안전한 백업 수 반환.
-    """
     start = time.perf_counter()
     if difficulty <= 3:
         depth=1; P=dict(k_dest_d1=9, k_shot_d1=7, cap_d1=80)
@@ -291,7 +293,7 @@ def winner_dialog(who: str):
     if colB.button("새 게임", use_container_width=True): new_game(); st.rerun()
 
 # ========== 상단 UI ==========
-# 타이머 표시용 클래스 계산
+# 타이머 클래스 계산
 hum_left = st.session_state.remain_hum
 cpu_left = st.session_state.remain_cpu
 hum_low = hum_left <= 30
@@ -315,28 +317,30 @@ with left:
             st.rerun()
 
 with right:
-    # 👉 타이머(좌) + 배너(우)를 한 줄(topbar)로
-    st.markdown('<div class="topbar">', unsafe_allow_html=True)
-    st.markdown('<div class="timers-col">', unsafe_allow_html=True)
-    st.markdown(
-        f'<span class="{cpu_classes}"><span class="timer-name">{EMO_CPU} 컴퓨터</span>'
-        f'<span class="timer-time">{fmt_time(cpu_left)}</span></span>', unsafe_allow_html=True
-    )
-    st.markdown(
-        f'<span class="{hum_classes}"><span class="timer-name">{EMO_HUM} Cool Choi</span>'
-        f'<span class="timer-time">{fmt_time(hum_left)}</span></span>', unsafe_allow_html=True
-    )
-    st.markdown('</div>', unsafe_allow_html=True)  # /timers-col
-
+    # 👉 한 번의 markdown으로 '타이머(좌) + 배너(우)'를 하나의 flex 행에 렌더
     banner_html = ""
     if not st.session_state.game_over and st.session_state.turn==HUM:
-        banner_html = "<div class='turn-banner'>✅ 지금은 <b>Cool Choi 차례</b> 입니다. 이동 ➜ 사격 순서로 진행!</div>"
-    else:
-        # 컴퓨터 차례에는 배너를 비움(자리차지 방지)
-        banner_html = ""
+        banner_html = "✅ 지금은 <b>Cool Choi 차례</b> 입니다. 이동 ➜ 사격 순서로 진행!"
+    # 컴퓨터 차례엔 배너를 비워 동일 행만 유지
 
-    st.markdown(banner_html, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)  # /topbar
+    st.markdown(
+        f"""
+        <div class="topbar">
+            <div class="timers-col">
+                <span class="{cpu_classes}">
+                    <span class="timer-name">{EMO_CPU} 컴퓨터</span>
+                    <span class="timer-time">{fmt_time(cpu_left)}</span>
+                </span>
+                <span class="{hum_classes}">
+                    <span class="timer-name">{EMO_HUM} Cool Choi</span>
+                    <span class="timer-time">{fmt_time(hum_left)}</span>
+                </span>
+            </div>
+            {'<div class="turn-banner">'+banner_html+'</div>' if banner_html else ''}
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     diff = st.slider("난이도 (1 쉬움 ··· 15 매우 어려움)", 1, 15, st.session_state.get("difficulty",5))
     st.session_state.difficulty = diff
