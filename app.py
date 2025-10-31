@@ -45,9 +45,9 @@ st.markdown(
     }}
     .board-grid .stButton > button:disabled {{ opacity: 1.0 !important; }}
 
-    /* 좌측 타이머: 가로 배치 */
+    /* 상단 타이머: 가로 배치 (한 줄만) */
     .timer-row {{
-        display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap;
+        display:flex; gap:10px; align-items:flex-start; flex-wrap:nowrap;
         margin-top:8px; margin-bottom:4px;
     }}
     .timer-box {{
@@ -305,7 +305,7 @@ with left:
             st.session_state.last_update = time.time()
             st.rerun()
 
-    # ✅ 타이머: 좌우(가로)로 한 번에 렌더링
+    # ✅ 상단 단일 타이머(가로 한 줄만 유지). *아래 중복 시계 제거됨*
     timer_html = f'''
     <div class="timer-row">
       <span class="{cpu_classes}">
@@ -334,7 +334,7 @@ with right:
             st.session_state.sel_from = None; st.session_state.sel_to = None; st.session_state.legal = set()
         st.rerun()
 
-# ✅ 두 컬럼 아래: 차례 배너(전폭)
+# ✅ 차례 배너(전폭)
 if not st.session_state.game_over and st.session_state.turn==HUM:
     st.markdown("<div class='turn-banner'>✅ 지금은 <b>Cool Choi 차례</b> 입니다. 이동 ➜ 사격 순서로 진행!</div>", unsafe_allow_html=True)
 
